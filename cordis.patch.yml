@@ -1,0 +1,5 @@
+# dsh-lan-proxy bundle patch: insert the LAN proxy row into the web profile.
+# 配置覆盖（白名单/端口/证书目录）在 profile 的 cordis.patch.yml 里按 id `lan-proxy` 写 config。
+- insert:
+    - id: lan-proxy
+      name: dsh-lan-proxy
