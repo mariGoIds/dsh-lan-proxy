@@ -1,38 +1,35 @@
 # dsh-lan-proxy
 
-English | [中文](README.zh.md)
+[English](README.en.md) | 中文
 
-A LAN / public reverse proxy plugin for [dsh](https://github.com/deepseek-ai/deepseek-harness). Runs **inside the dsh process**: listens on HTTP/HTTPS and forwards to dsh's loopback server, with IP-whitelist trust, optional **Basic Auth**, and access logging.
+dsh 局域网/公网反向代理插件，运行在 dsh 进程内：HTTP(S) → dsh 回环服务，带 IP 白名单、可选 Basic Auth、访问日志。
 
-> **Compatibility**: targets the dsh **developer preview** tree (`web` profile). dsh is explicitly pre-1.0 with breaking changes; pin by commit (`#<commit>` / `v0.3.0`) rather than expecting API stability between dsh releases.
+dsh 禁止 `--host 0.0.0.0`，本插件即"进程内套代理"的落地形态。
 
-dsh intentionally refuses `--host 0.0.0.0`; this plugin is the sanctioned "proxy in front" shape living in-process.
+> 兼容 dsh 开发者预览版（`web` profile）。dsh 尚未 1.0、有破坏性变更，安装请按版本锁定 `#v0.3.0`。
 
-## Features
+## 特性
 
-- **Dual-stack** binding (`::` = IPv4 + IPv6) — public access over your global IPv6, no NAT tricks needed
-- **IP whitelist** = password-less trust for known networks (prefix-match, IPv4/IPv6)
-- **Basic Auth** = real gate for everything else (browser-native login dialog + cookie session that covers WebSocket)
-- **Access log** per request, to dsh's logger and/or a file
-- **TLS** on `:3443` so LAN/public browsers stay in a secure context (`crypto.randomUUID` works)
-- **Resilient**: missing cert or taken port only skips that listener, never kills dsh
-- Cleanup on unload via `ctx.effect()`; zero-build plain ESM (git/npm install needs no `prepare`)
+- 双栈监听 `::`（v4+v6），公网 IPv6 直连，免 NAT
+- IP 白名单（前缀/精确）免密直进
+- Basic Auth + Cookie 会话（覆盖 WebSocket）；`authSecret` 加盐防离线碰撞
+- 访问日志：每请求一行，可落盘
+- TLS `:3443`；证书缺失/端口占用只跳过该监听，不杀 dsh
+- 卸载自动清理（`ctx.effect()`）；纯 ESM 零构建
 
-## Install
+## 安装
 
 ```sh
-# local checkout — use file:, NOT link: (link: won't install the bundle's deps)
+# 本地目录（用 file:，别用 link:——link: 不装 bundle 自身依赖）
 dsh plugin --profile web add file:/path/to/dsh-lan-proxy
-
-# or from GitHub (replace `you` with your GitHub username before publishing)
+# 或 GitHub
 dsh plugin --profile web add github:mariGoIds/dsh-lan-proxy#v0.3.0
-
-# restart dsh afterwards
+# 装完重启 dsh
 ```
 
-## Configuration
+## 配置
 
-All settings are a [Schemastery](https://github.com/shigma/schemastery) schema. Defaults are **secure-by-default**: empty whitelist, auth off, log off — a fresh install only serves localhost until you configure it. Override in your profile's `cordis.patch.yml`:
+Schemastery schema，安全默认（白名单/认证/日志全空，装完仅服务本机）。在 profile 的 `cordis.patch.yml` 覆盖：
 
 ```yaml
 - id: lan-proxy
@@ -42,64 +39,51 @@ All settings are a [Schemastery](https://github.com/shigma/schemastery) schema. 
     tlsPort: 3443
     backendHost: 127.0.0.1
     backendPort: 3081
-    allowedPrefixes: ['192.0.2..']   # password-less trusted networks
+    allowedPrefixes: ['192.0.2..']   # 免密可信网段
     allowedIps: [198.51.100..25]
-    authUsername: dsh                   # empty + empty password = auth off
-    authPassword: '<choose-a-long-one>'
-    authSecret: '<random-string>'       # optional salt for the session token
+    authUsername: dsh                   # 用户名+密码都是空 = 认证关
+    authPassword: '<长随机密码>'
+    authSecret: '<随机盐>'              # 可选，混入会话令牌
     authRealm: dsh
     authCookieName: dsh_auth
     accessLog: true
-    accessLogFile: /var/log/dsh-access.log   # '' = dsh logger only
-    certDir: ''                          # '' = $DSH_HOME/certs (or ~/.dsh/certs)
+    accessLogFile: ''                   # '' = 仅进 dsh 日志器；非空则落盘
+    certDir: ''                          # '' = $DSH_HOME/certs（或 ~/.dsh/certs）
 ```
 
-| Key | Default | Description |
+| 字段 | 默认 | 说明 |
 |---|---|---|
-| `listenHost` | `::` | Bind host; `::` is dual-stack (v4+v6) |
-| `listenPort` / `tlsPort` | `3080` / `3443` | HTTP / HTTPS listener |
-| `backendHost` / `backendPort` | `127.0.0.1` / `3081` | The dsh backend |
-| `allowedPrefixes` | `[]` | Address prefixes allowed **without password** (IPv4/IPv6) |
-| `allowedIps` | `[]` | Exact addresses allowed without password |
-| `authUsername` / `authPassword` | `''` | Basic Auth credential (both set = auth on) |
-| `authRealm` | `dsh` | String shown in the browser login dialog |
-| `authCookieName` | `dsh_auth` | Session cookie name |
-| `authSecret` | `''` | Optional private salt mixed into the session token. Makes weak passwords much harder to crack offline. **Set a long random value on public deployments.** Empty stays backwards-compatible with v0.2 tokens |
-| `accessLog` | `false` | Log every request |
-| `accessLogFile` | `''` | Append log lines here (else only dsh logger) |
-| `certDir` | `''` | TLS `.pem` dir; files must be `key.pem` + `cert.pem` |
+| `listenHost` | `::` | 绑定地址，`::` 双栈 v4+v6 |
+| `listenPort` / `tlsPort` | `3080` / `3443` | HTTP / HTTPS 端口 |
+| `backendHost` / `backendPort` | `127.0.0.1` / `3081` | dsh 后端 |
+| `allowedPrefixes` | `[]` | 免密网段前缀（v4/v6 通用） |
+| `allowedIps` | `[]` | 免密精确 IP |
+| `authUsername` / `authPassword` | `''` | Basic Auth 凭据，两者非空才开认证 |
+| `authRealm` | `dsh` | 登录框文字 |
+| `authCookieName` | `dsh_auth` | 会话 cookie 名 |
+| `authSecret` | `''` | 会话令牌私密盐。公网部署请设随机长串，防弱密码离线爆破；留空与 v0.2 兼容 |
+| `accessLog` | `false` | 每请求记日志 |
+| `accessLogFile` | `''` | 非空则追加写文件 |
+| `certDir` | `''` | TLS 证书目录，文件为 `key.pem`+`cert.pem` |
 
-## Security model
+## 安全
 
-Access is decided in this order:
+访问判定顺序：① 白名单 IP（本机/`allowedIps`/`allowedPrefixes`）免密直进；② 非白名单 + 认证开 → 需 Basic 或 Cookie，否则 401；③ 非白名单 + 认证关 → 403。
 
-1. **Trusted IP** (localhost, `allowedIps`, `allowedPrefixes`) → pass, **no password**.
-2. Otherwise, **auth on** → must present valid Basic credentials or a valid session cookie, else `401`.
-3. Otherwise (auth off, non-trusted) → `403`.
+- 白名单=免密通道，不要把不可信网段（如移动宽带）放进去
+- 密码用长随机串，并配 `authSecret`；暂无限速
+- 会话 token 永不过期：改用户名/密码立即让所有会话失效
+- 凭据只有走 TLS 安全；`:3080` 收到明文 Basic 会打告警，仅限内网调试用
 
-**Why a cookie?** dsh's frontend streams events over **WebSocket**, and browsers cannot attach an `Authorization` header — nor cached Basic auth — to a WebSocket. So after a successful Basic login the proxy issues `Set-Cookie` (`HttpOnly; SameSite=Lax`, `Secure` on TLS), which same-origin fetch/SSE/WebSocket all carry automatically. Stateless: the cookie is a deterministic hash of the credential material, so nothing is stored and credentials survive restarts.
+为什么用 Cookie：dsh 前端事件流走 WebSocket，浏览器无法给 WS 附 `Authorization` 头，登录成功后用 `Set-Cookie`（`HttpOnly; SameSite=Lax`，TLS 加 `Secure`）承载会话，同源 fetch/SSE/WS 自动携带。
 
-**Boundaries to know:**
+## 公网 IPv6
 
-- The whitelist skips the password. If a device on a whitelisted network is compromised, that's equivalent to being at your desk — treat WAN prefixes (mobile internets) as **not** trusted.
-- Anyone reaching the public port gets the login dialog; a weak password invites brute force. Use a long random password — and set `authSecret` so a weak password can't be cracked offline from a stolen cookie. (No rate limiting yet.)
-- **The session token never expires.** It is derived from the credentials; changing the username/password invalidates every existing session immediately. Protect the cookie accordingly.
-- Credentials travel as Basic auth — **only safe over TLS**. The HTTP listener (`:3080`) will warn in the log when it receives Basic credentials on plaintext; only use it for LAN/debugging, never for anything public.
+`::` 默认监听 v6，直接访问 `https://<IPv6>:3443`。**证书 SAN 必须含该 IPv6**，否则浏览器报名称不匹配；优先 DNS/DDNS（SLAAC 地址会变）。无 IPv6 时用 `listenHost: '0.0.0.0'` + 路由器端口转发。
 
-## Public access over IPv6
+## 证书
 
-The `::` default already listens on v6. To expose publicly:
-
-1. Confirm a global IPv6 on the host (`ipconfig` / `ip -6 addr`; typical home broadband has one).
-2. Point a browser (or DNS name) at `https://<your-ipv6>:3443`.
-3. **Regenerate the certificate with that IPv6 in its SAN** — otherwise browsers flag a mismatch. Your cert SAN should also keep your v4 LAN IP and `localhost`.
-4. Prefer a DNS/DDNS name over a bare v6 literal — SLAAC addresses change.
-
-If your network drops IPv6, fall back to `listenHost: '0.0.0.0'` + router port-forwarding (then the auth gate matters even more).
-
-## Certificates
-
-Files must be `certDir/key.pem` + `certDir/cert.pem`. Generate a self-signed cert (SAN is what browsers check):
+`certDir/key.pem` + `certDir/cert.pem`（自签名生成命令，SAN 是关键）：
 
 ```sh
 openssl req -x509 -newkey rsa:2048 -nodes \
@@ -108,24 +92,22 @@ openssl req -x509 -newkey rsa:2048 -nodes \
   -addext "subjectAltName=IP:192.0.2.3,IP:2001:db8:abcd:…:1234,IP:127.0.0.1,DNS:localhost"
 ```
 
-Missing certs only disable the HTTPS listener; HTTP keeps working (logged as a warning).
+证书缺失只禁用 HTTPS，HTTP 照常（记 warning）。
 
-## Access log
+## 访问日志
 
-With `accessLog: true` each request writes one line:
+`accessLog: true` 时每请求一行，403/401 也记：
 
 ```
 2026-08-17T04:00:00.000Z https ip=2001:db8::99 "GET /" 200 12ms 48213b
 ```
 
-Blocked (`403`) and unauthenticated (`401`) attempts are logged too. Lines go to the dsh logger; set `accessLogFile` to an absolute path to also append to a file (the directory is created automatically).
-
-## Development
-
-Pure ESM, no build. Unit/integration tests with `node:test`:
+## 开发
 
 ```sh
-npm test
+npm test   # node:test，fake request 驱动，无需运行 dsh
 ```
 
-The forward gate is tested by driving `createHandlers` with fake requests against a local backend — no running dsh needed.
+## License
+
+MIT
