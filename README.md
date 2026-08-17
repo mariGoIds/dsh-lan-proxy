@@ -39,8 +39,8 @@ Schemastery schema，安全默认（白名单/认证/日志全空，装完仅服
     tlsPort: 3443
     backendHost: 127.0.0.1
     backendPort: 3081
-    allowedPrefixes: ['192.0.2..']   # 免密可信网段
-    allowedIps: [198.51.100..25]
+    allowedPrefixes: ['192.0.2.']   # 免密可信网段
+    allowedIps: [198.51.100.25]
     authUsername: dsh                   # 用户名+密码都是空 = 认证关
     authPassword: '<长随机密码>'
     authSecret: '<随机盐>'              # 可选，混入会话令牌
@@ -89,7 +89,7 @@ Schemastery schema，安全默认（白名单/认证/日志全空，装完仅服
 openssl req -x509 -newkey rsa:2048 -nodes \
   -keyout key.pem -out cert.pem -days 3650 \
   -subj "/CN=DeepSeek-Harness-LAN" \
-  -addext "subjectAltName=IP:192.0.2.3,IP:2001:db8:abcd:…:1234,IP:127.0.0.1,DNS:localhost"
+  -addext "subjectAltName=IP:192.0.2.10,IP:2001:db8::8,IP:127.0.0.1,DNS:localhost"
 ```
 
 证书缺失只禁用 HTTPS，HTTP 照常（记 warning）。

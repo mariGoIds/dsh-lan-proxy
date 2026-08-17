@@ -39,8 +39,8 @@ Schemastery schema. Secure-by-default: empty whitelist, auth off, log off — a 
     tlsPort: 3443
     backendHost: 127.0.0.1
     backendPort: 3081
-    allowedPrefixes: ['192.0.2..']   # password-less trusted networks
-    allowedIps: [198.51.100..25]
+    allowedPrefixes: ['192.0.2.']   # password-less trusted networks
+    allowedIps: [198.51.100.25]
     authUsername: dsh                   # empty + empty password = auth off
     authPassword: '<long-random-password>'
     authSecret: '<random-salt>'         # optional: salts the session token
@@ -89,7 +89,7 @@ Files must be `certDir/key.pem` + `certDir/cert.pem` (SAN is what browsers check
 openssl req -x509 -newkey rsa:2048 -nodes \
   -keyout key.pem -out cert.pem -days 3650 \
   -subj "/CN=DeepSeek-Harness-LAN" \
-  -addext "subjectAltName=IP:192.0.2.3,IP:2001:db8:abcd:…:1234,IP:127.0.0.1,DNS:localhost"
+  -addext "subjectAltName=IP:192.0.2.10,IP:2001:db8::8,IP:127.0.0.1,DNS:localhost"
 ```
 
 Missing certs only disable HTTPS; HTTP keeps working (logged as a warning).

@@ -22,21 +22,21 @@ test('isTrusted: 本机始终可信', () => {
 })
 
 test('isTrusted: 精确 IP 白名单', () => {
-  const cfg = { allowedPrefixes: [], allowedIps: ['198.51.100..25'] }
-  assert.ok(isTrusted('198.51.100..25', cfg))
-  assert.ok(!isTrusted('198.51.100..26', cfg))
+  const cfg = { allowedPrefixes: [], allowedIps: ['198.51.100.25'] }
+  assert.ok(isTrusted('198.51.100.25', cfg))
+  assert.ok(!isTrusted('198.51.100.26', cfg))
 })
 
 test('isTrusted: 网段前缀白名单（IPv4）', () => {
-  const cfg = { allowedPrefixes: ['192.0.2..'], allowedIps: [] }
-  assert.ok(isTrusted('192.0.2.3', cfg))
-  assert.ok(!isTrusted('192.0.2.3', cfg))
+  const cfg = { allowedPrefixes: ['192.0.2.'], allowedIps: [] }
+  assert.ok(isTrusted('192.0.2.10', cfg))
+  assert.ok(!isTrusted('198.51.100.53', cfg))
 })
 
 test('isTrusted: 网段前缀白名单（IPv6）', () => {
-  const cfg = { allowedPrefixes: ['2001:db8:82cb:1500:'], allowedIps: [] }
-  assert.ok(isTrusted('2001:db8:82cb:1500:abc::1', cfg))
-  assert.ok(!isTrusted('2001:db8:999::1', cfg))
+  const cfg = { allowedPrefixes: ['2001:db8:1500:'], allowedIps: [] }
+  assert.ok(isTrusted('2001:db8:1500:abc::1', cfg))
+  assert.ok(!isTrusted('2001:db9::1', cfg))
 })
 
 test('isTrusted: 默认空白名单只放本机', () => {

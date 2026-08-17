@@ -42,7 +42,7 @@ function baseConfig(extra = {}) {
   return {
     backendHost: '127.0.0.1',
     backendPort: port,
-    allowedPrefixes: ['192.0.2..'],
+    allowedPrefixes: ['192.0.2.'],
     allowedIps: [],
     authUsername: USER,
     authPassword: PASS,
@@ -105,7 +105,7 @@ test('信任网段 IP：免密放行，转发到后端', async () => {
   const deps = makeDeps()
   const { handleRequest } = createHandlers(baseConfig(), deps)
   const res = fakeRes()
-  handleRequest(makeReq('192.0.2..77'), res)
+  handleRequest(makeReq('192.0.2.77'), res)
   await waitFor(() => res.status() !== null)
   assert.equal(res.status(), 200)
   assert.equal(res.body(), 'backend-ok')
@@ -115,7 +115,7 @@ test('公网 IPv6 无凭据：认证开启 → 401 + WWW-Authenticate', () => {
   const deps = makeDeps()
   const { handleRequest } = createHandlers(baseConfig(), deps)
   const res = fakeRes()
-  handleRequest(makeReq('2001:db8:82cb:1500::77', {}, true), res)
+  handleRequest(makeReq('2001:db8:1500::77', {}, true), res)
   assert.equal(res.status(), 401)
   assert.equal(res.header('www-authenticate'), 'Basic realm="test-realm"')
   assert.equal(res.body(), '401 Unauthorized')
