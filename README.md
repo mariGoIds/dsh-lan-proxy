@@ -1,5 +1,7 @@
 # dsh-lan-proxy
 
+English | [中文](README.zh.md)
+
 A LAN / public reverse proxy plugin for [dsh](https://github.com/deepseek-ai/deepseek-harness). Runs **inside the dsh process**: listens on HTTP/HTTPS and forwards to dsh's loopback server, with IP-whitelist trust, optional **Basic Auth**, and access logging.
 
 > **Compatibility**: targets the dsh **developer preview** tree (`web` profile). dsh is explicitly pre-1.0 with breaking changes; pin by commit (`#<commit>` / `v0.3.0`) rather than expecting API stability between dsh releases.
@@ -127,16 +129,3 @@ npm test
 ```
 
 The forward gate is tested by driving `createHandlers` with fake requests against a local backend — no running dsh needed.
-
-## 中文速览
-
-dsh 局域网/公网反代插件，运行在 dsh 进程内：HTTP(S) 端口转发到 dsh 回环服务，带 IP 白名单信任 + 可选 Basic Auth + 访问日志。
-
-- **安装**：`dsh plugin --profile <name> add file:<路径>`（GitHub 用 `add github:mariGoIds/dsh-lan-proxy`）；用 `file:` 别用 `link:`——后者不装 bundle 自身依赖
-- **信任模型**：白名单 IP（本机/精确/前缀网段）免密直进；其余来源开启认证后需账号密码，否则 401/403
-- **认证**：Basic Auth 登录后下发 Cookie（`HttpOnly; SameSite=Lax`，TLS 加 `Secure`），保障 WebSocket 也能带登录态（浏览器 WS 带不了 Basic 头）；凭据本质为 `sha256(用户:密码[:盐])`，无状态、重启即恢复；**token 永不过期**，改密即刻全失效，建议配 `authSecret` 防弱密码离线碰撞
-- **明文警告**：HTTP 端口收到 Basic 凭据时日志会 warn；公网务必走 3443，密码/会话只在 HTTPS 上传输
-- **IPv6 公网**：`listenHost: '::'` 默认双栈；对外访问 `https://<IPv6>:3443`；**必须重新生成含该 IPv6 的证书 SAN**，否则浏览器告警
-- **访问日志**：`accessLog: true` + `accessLogFile` 落盘；403/401 也记
-- **安全边界**：白名单即免密通道，别把不可信网段放进去；公网必须走 3443（TLS，凭据明文不能走 HTTP）；注意换强密码（暂无限速）
-- **开发**：`npm test`（node:test，fake req 驱动，无需跑 dsh）
