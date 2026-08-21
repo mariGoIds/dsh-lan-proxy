@@ -6,7 +6,7 @@ dsh 局域网/公网反向代理插件，运行在 dsh 进程内：对外监听 
 
 dsh 禁止 `--host 0.0.0.0`；本插件即官方认可的"进程内套代理"形态。纯 ESM、零构建、卸载自动清理（`ctx.effect()`）。
 
-> 兼容 dsh 开发者预览版（`web` profile）。dsh 尚未 1.0、有破坏性变更，请按版本锁定 `#v0.3.0`。
+> 兼容 dsh 开发者预览版（`web` profile）。dsh 尚未 1.0、有破坏性变更，请按版本锁定 `#v0.3.1`。
 
 ## 安装
 
@@ -14,7 +14,7 @@ dsh 禁止 `--host 0.0.0.0`；本插件即官方认可的"进程内套代理"形
 # 本地目录（用 file:，勿用 link:——link: 不装 bundle 依赖）
 dsh plugin --profile web add file:/path/to/dsh-lan-proxy
 # 或 GitHub
-dsh plugin --profile web add github:mariGoIds/dsh-lan-proxy#v0.3.0
+dsh plugin --profile web add github:mariGoIds/dsh-lan-proxy#v0.3.1
 # 装完重启 dsh
 ```
 

@@ -1,6 +1,7 @@
 // dsh-lan-proxy: LAN/public reverse proxy running inside the dsh process.
 // 监听 HTTP(s) 端口转发到 dsh（backendHost:backendPort），带 IP 白名单 + 头重写。
-// v0.2：支持 IPv6 公网直连（listenHost '::' dual-stack）+ Basic Auth（Cookie 会话，覆盖 WS）+ 访问日志。
+// v0.3.1：HTTP 明文口默认只绑 loopback（httpListenHost，防公网嗅探凭据）——
+//       公网仅 HTTPS(tlsPort)；v0.2 起支持 IPv6 公网直连（listenHost '::' dual-stack）。
 // 白名单 = 免密可信通道；公网设备走密码认证。默认值全新为零（安全默认），用户按需配置。
 import path from 'node:path'
 import os from 'node:os'
@@ -15,6 +16,10 @@ export const name = 'dsh-lan-proxy'
 export const Config = Schema.object({
   // 对外监听：'::' = dual-stack（IPv4+IPv6 都收，公网直连用 IPv6）
   listenHost: Schema.string().default('::'),
+  // HTTP 明文口监听地址：默认只绑 127.0.0.1（loopback）。
+  // 公网只能走 HTTPS(tlsPort)；非白名单来源的明文凭据不再可能被嗅探。
+  // 需要局域网明文 HTTP 时才显式改成 '0.0.0.0' 或 '::'。
+  httpListenHost: Schema.string().default('127.0.0.1'),
   listenPort: Schema.number().default(3080),
   tlsPort: Schema.number().default(3443),
   // 后端（dsh 本体）
@@ -42,7 +47,7 @@ export const Config = Schema.object({
 
 export function apply(ctx, config) {
   const logger = ctx.logger('lan-proxy')
-  const { listenHost, listenPort, tlsPort } = config
+  const { listenHost, httpListenHost, listenPort, tlsPort } = config
 
   const home = process.env.DSH_HOME || path.join(os.homedir(), '.dsh')
   const certDir = config.certDir || path.join(home, 'certs')
@@ -67,8 +72,8 @@ export function apply(ctx, config) {
     const httpServer = http.createServer(handleRequest)
     httpServer.on('upgrade', handleUpgrade)
     httpServer.on('error', (e) => logger.warn(`http :${listenPort} ${e.message}`))
-    httpServer.listen(listenPort, listenHost, () => {
-      logger.info(`dsh-proxy http listening on ${listenHost}:${listenPort} -> ${config.backendHost}:${config.backendPort}`)
+    httpServer.listen(listenPort, httpListenHost, () => {
+      logger.info(`dsh-proxy http listening on ${httpListenHost}:${listenPort} -> ${config.backendHost}:${config.backendPort}`)
       logger.info(`whitelist prefixes: ${(config.allowedPrefixes || []).join(', ')}; ips: ${(config.allowedIps || []).join(', ')}; auth: ${config.authUsername ? 'on (' + config.authUsername + ')' : 'off'}`)
     })
 

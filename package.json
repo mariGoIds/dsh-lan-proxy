@@ -1,6 +1,6 @@
 {
   "name": "dsh-lan-proxy",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "dsh LAN/public reverse proxy plugin: IP whitelist + Basic Auth + access log, runs inside the dsh process. Dual-stack (IPv4/IPv6).",
   "type": "module",
   "main": "index.js",

@@ -6,7 +6,7 @@ A LAN/public reverse proxy plugin for [dsh](https://github.com/deepseek-ai/deeps
 
 dsh refuses `--host 0.0.0.0`; this plugin is the sanctioned "proxy in front" shape living in-process. Zero-build plain ESM; cleanup on unload via `ctx.effect()`.
 
-> Compatible with the dsh **developer preview** (`web` profile). dsh is pre-1.0 with breaking changes — pin by version (`#v0.3.0`), not by expecting API stability.
+> Compatible with the dsh **developer preview** (`web` profile). dsh is pre-1.0 with breaking changes — pin by version (`#v0.3.1`), not by expecting API stability.
 
 ## Install
 
@@ -14,7 +14,7 @@ dsh refuses `--host 0.0.0.0`; this plugin is the sanctioned "proxy in front" sha
 # local checkout — use file:, NOT link: (link: won't install the bundle's deps)
 dsh plugin --profile web add file:/path/to/dsh-lan-proxy
 # or GitHub
-dsh plugin --profile web add github:mariGoIds/dsh-lan-proxy#v0.3.0
+dsh plugin --profile web add github:mariGoIds/dsh-lan-proxy#v0.3.1
 # restart dsh afterwards
 ```
 
