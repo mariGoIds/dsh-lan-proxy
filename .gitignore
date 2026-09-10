@@ -2,5 +2,6 @@ node_modules/
 test-access.log
 *.log
 certs/
-*.pemDEVELOPMENT.local.md
+*.pem
+DEVELOPMENT.local.md
 DEVELOPMENT.md

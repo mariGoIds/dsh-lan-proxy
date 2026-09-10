@@ -1,11 +1,14 @@
 {
   "name": "dsh-lan-proxy",
-  "version": "0.3.1",
-  "description": "dsh LAN/public reverse proxy plugin: IP whitelist + Basic Auth + access log, runs inside the dsh process. Dual-stack (IPv4/IPv6).",
+  "version": "1.1.0",
+  "description": "dsh LAN/public reverse proxy plugin: IP whitelist, one-time login codes, device management, access log. Runs inside the dsh process; dual-stack IPv4/IPv6.",
   "type": "module",
   "main": "index.js",
   "exports": {
     ".": "./index.js",
+    "./client": {
+      "default": "./lib/client.js"
+    },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
@@ -13,8 +16,8 @@
     "index.js",
     "lib",
     "cordis.patch.yml",
-    "README.md",
-    "README.en.md"
+    "docs",
+    "README.md"
   ],
   "license": "MIT",
   "keywords": [
@@ -24,6 +27,8 @@
     "lan",
     "ipv6",
     "basic-auth",
+    "one-time-code",
+    "device-management",
     "cordis"
   ],
   "repository": {
@@ -43,6 +48,9 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
     }
   }
 }
