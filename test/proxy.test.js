@@ -622,3 +622,51 @@ test('登录码页已移除：非信任来源 POST /__lan_code 也不能签发',
   assert.equal(res.status(), 403, '非信任来源不应走到签发分支')
   assert.equal(store.peek(FIXED_MS).active, false)
 })
+
+// ── 远程来源标记：只有部署端能发码/作废/管设备 ───────────────────────────────
+
+// 起一个记录请求头的上游，返回 { port, state, close }
+async function headerEchoBackend() {
+  const state = { headers: null }
+  const svr = http.createServer((req, res) => {
+    state.headers = { ...req.headers }
+    res.writeHead(200, { 'content-type': 'text/plain' })
+    res.end('ok')
+  })
+  await new Promise((r) => svr.listen(0, '127.0.0.1', r))
+  return { port: svr.address().port, state, close: () => svr.close() }
+}
+
+test('远程标记：白名单来源不带 x-lan-proxy-remote', async () => {
+  const up = await headerEchoBackend()
+  try {
+    const { handleRequest } = createHandlers(baseConfig({ backendPort: up.port }), makeDeps())
+    const res = fakeRes()
+    handleRequest(makeReq('192.0.2.77'), res)
+    await waitFor(() => res.status() !== null)
+    assert.equal(up.state.headers['x-lan-proxy-remote'], undefined)
+  } finally { up.close() }
+})
+
+test('远程标记：非白名单（已授权设备）带 x-lan-proxy-remote: 1', async () => {
+  const up = await headerEchoBackend()
+  try {
+    const { devices, handleRequest } = codeEnv({ backendPort: up.port })
+    const { token } = devices.add({ ip: '203.0.113.9', ua: 'phone' }, FIXED_MS)
+    const res = fakeRes()
+    handleRequest(makeReq('203.0.113.9', { cookie: `dsh_auth=${token}` }), res)
+    await waitFor(() => res.status() !== null)
+    assert.equal(up.state.headers['x-lan-proxy-remote'], '1')
+  } finally { up.close() }
+})
+
+test('远程标记：白名单来源自带的同名头会被剔掉（不能伪造）', async () => {
+  const up = await headerEchoBackend()
+  try {
+    const { handleRequest } = createHandlers(baseConfig({ backendPort: up.port }), makeDeps())
+    const res = fakeRes()
+    handleRequest(makeReq('192.0.2.77', { 'x-lan-proxy-remote': '1' }), res)
+    await waitFor(() => res.status() !== null)
+    assert.equal(up.state.headers['x-lan-proxy-remote'], undefined)
+  } finally { up.close() }
+})

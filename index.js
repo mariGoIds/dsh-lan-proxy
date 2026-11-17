@@ -14,6 +14,10 @@ import { devicesFromJSON } from './lib/devices.js'
 
 export const name = 'dsh-lan-proxy'
 
+// 只有部署端可以执行的动作；远程设备（经反代进来的已授权会话）只能看状态。
+const OFFBOX_ACTIONS = new Set(['issue', 'revoke', 'devices', 'revoke-device', 'revoke-all-devices'])
+
+
 export const Config = Schema.object({
   // 对外监听：'::' = dual-stack（IPv4+IPv6 都收，公网直连用 IPv6）
   listenHost: Schema.string().default('::'),
@@ -220,18 +224,42 @@ export function apply(ctx, config) {
           rpcId = body && typeof body.rpcId === 'string' ? body.rpcId : 'invalid'
           // 客户端经 connection.rpc.call('/api', 'lan-proxy/code', ...) 调用时，
           // 端点名在 envelope.method、动作在 payload.method；也兼容直接 POST 的旧形状。
+          // 注意：直接 POST 时 envelope.method 可能就叫 'devices'，所以先认 payload 里的动作。
           const inner = (body && body.payload) || {}
           action = typeof inner.method === 'string' ? inner.method
-            : body && typeof body.method === 'string' ? body.method
-              : 'status'
+            : typeof inner.action === 'string' ? inner.action
+              : body && typeof body.method === 'string' ? body.method
+                : body && typeof body.action === 'string' ? body.action
+                  : 'status'
           payload = inner
+          // 部署端之外（经反代进来、带 x-lan-proxy-remote 的已授权设备）只能看状态：
+          // 不能发码/作废/管设备，也拿不到码本身和设备表——否则一台已授权设备
+          // 就能给自己或新设备再发一把钥匙。
+          const remote = request.headers.get('x-lan-proxy-remote') === '1'
+          if (remote && OFFBOX_ACTIONS.has(action)) {
+            logger.warn(`[code] 拒绝远程来源的 ${action}（只有部署端可以签发/作废/管理设备）`)
+            return Response.json({
+              type: 'server-response',
+              rpcId,
+              result: {
+                ok: false,
+                error: { code: 'forbidden', message: '只有部署 dsh 的那一端可以生成、作废或管理登录码', details: {} },
+              },
+            })
+          }
           let value
           if (action === 'issue') value = issueCode()
           else if (action === 'revoke') value = revokeCode()
           else if (action === 'devices') value = { devices: listDevices() }
           else if (action === 'revoke-device') value = { revoked: revokeDevice(payload.id), devices: listDevices() }
           else if (action === 'revoke-all-devices') value = { revoked: revokeAllDevices(), devices: listDevices() }
-          else value = codeState()
+          else if (remote) {
+            // 远程设备只拿到「有没有码、还剩多久」，拿不到码本身。
+            const st = codeState()
+            delete st.code
+            value = { ...st, remote }
+          }
+          else value = { ...codeState(), remote }
           return Response.json({ type: 'server-response', rpcId, result: { ok: true, value } })
         } catch (e) {
           return Response.json({

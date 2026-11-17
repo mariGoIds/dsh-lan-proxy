@@ -4,7 +4,7 @@ dsh 局域网/公网反向代理插件，运行在 dsh 进程内：对外监听 
 
 dsh 禁止 `--host 0.0.0.0`；本插件即在 dsh 进程内套一层代理。纯 ESM、零构建、卸载自动清理（`ctx.effect()`）。
 
-> 兼容 dsh 0.2.2（`web` profile）。dsh 尚未 1.0、有破坏性变更，请按版本锁定 `#v1.2.0`。
+> 兼容 dsh 0.2.2（`web` profile）。dsh 尚未 1.0、有破坏性变更，请按版本锁定 `#v1.3.0`。
 
 ![设置 → 通用 → 远程登录码](docs/settings-card.jpg)
 
@@ -14,7 +14,7 @@ dsh 禁止 `--host 0.0.0.0`；本插件即在 dsh 进程内套一层代理。纯
 # 本地目录（用 file:，勿用 link:——link: 不装 bundle 依赖）
 dsh plugin --profile web add file:/path/to/dsh-lan-proxy
 # 或 GitHub
-dsh plugin --profile web add github:mariGoIds/dsh-lan-proxy#v1.2.0
+dsh plugin --profile web add github:mariGoIds/dsh-lan-proxy#v1.3.0
 # 装完重启 dsh
 ```
 
@@ -32,6 +32,7 @@ dsh plugin --profile web add github:mariGoIds/dsh-lan-proxy#v1.2.0
 
 - 一次性登录码：本机手动生成、有租期、**用一次即作废**
 - 生成入口：「设置 → 通用 → 远程登录码」这一行（点「展开」显示码与按钮）
+- **只有部署 dsh 的那一端能生成 / 作废 / 管理设备**：经反代进来的已授权设备打开设置页只能看到「有没有码、还剩多久」，拿不到码本身，也发不了新码
 - 登录码只在已登录的本机会话里可见，不在任何公网页面上暴露
 - 失败限流：按 IP + 全局双重计数，全局超限后指数退避锁定
 
@@ -124,6 +125,8 @@ Schemastery schema；安全默认（白名单/登录码/日志全空）。在 pr
 **生成 / 查看**：
 
 - dsh 界面：「设置 → 通用 → 远程登录码」，收起时只显示状态与当前码，点「展开」后是码 + 倒计时 + 「生成登录码 / 重新生成 / 立即作废」按钮和已授权设备管理
+
+**只有部署端能发码**：非白名单来源（经反代进来的已授权设备）在设置页里只能看到码是否存在与剩余时间，看不到码本身，也没有生成 / 作废 / 管理设备的按钮。判定依据是代理给非白名单请求加的 `x-lan-proxy-remote` 头——浏览器同源页面改不了它（非简单请求要过 CORS 预检，dsh 不回应），所以远程设备伪造不了。
 
 ```yaml
 - id: lan-proxy
