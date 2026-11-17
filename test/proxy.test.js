@@ -588,51 +588,37 @@ test('登录码：锁定后首页也显示锁定提示', () => {
   assert.ok(res.body().includes('尝试次数过多'), res.body().slice(0, 200))
 })
 
-test('登录码页：信任来源可见，未生成时提示无码', () => {
-  const { handleRequest } = codeEnv()
+test('登录码页已移除：/__lan_code 对信任来源也交给 dsh（不再渲染本地页）', () => {
+  const { store, handleRequest } = codeEnv()
+  const { code } = store.issue(FIXED_MS)
   const res = fakeRes()
   handleRequest(makeReq('192.0.2.77', {}, false, 'GET', '/__lan_code'), res)
-  assert.equal(res.status(), 200)
-  assert.ok(res.body().includes('当前没有未使用的登录码'))
+  // 转发到测试后端（返回 backend-ok），说明代理本身不再截获该路径
+  assert.ok(!res.body().includes(code), '不得再以本地页面泄露登录码')
+  assert.ok(!res.body().includes('远程登录码'))
 })
 
-test('登录码页：POST issue 生成码，GET 可见', async () => {
+test('登录码页已移除：POST /__lan_code 不再签发', async () => {
   const { store, handleRequest } = codeEnv()
-  const post = fakeRes()
-  post.method = 'POST'
-  handleRequest(makePostReq('192.0.2.77', 'action=issue', {}, false, '/__lan_code'), post)
-  await waitFor(() => post.status() !== null)
-  assert.equal(post.status(), 303)
-  const v = store.peek(FIXED_MS)
-  assert.equal(v.active, true, '应已签发')
-  const get = fakeRes()
-  handleRequest(makeReq('192.0.2.77', {}, false, 'GET', '/__lan_code'), get)
-  assert.ok(get.body().includes(v.code), '页面应含刚生成的码')
-})
-
-test('登录码页：POST revoke 立即作废', async () => {
-  const { store, handleRequest } = codeEnv()
-  store.issue(FIXED_MS)
-  const res = fakeRes()
-  handleRequest(makePostReq('192.0.2.77', 'action=revoke', {}, false, '/__lan_code'), res)
-  await waitFor(() => res.status() !== null)
+  handleRequest(makePostReq('192.0.2.77', 'action=issue', {}, false, '/__lan_code'), fakeRes())
+  await new Promise((r) => setImmediate(r))
   assert.equal(store.peek(FIXED_MS).active, false)
 })
 
-test('登录码页：非信任来源 404，且不泄露码', () => {
+test('登录码页已移除：非信任来源访问 /__lan_code → 走普通拒绝（403），不泄露码', () => {
   const { store, handleRequest } = codeEnv()
   const { code } = store.issue(FIXED_MS)
   const res = fakeRes()
   handleRequest(makeReq('203.0.113.9', {}, true, 'GET', '/__lan_code'), res)
-  assert.equal(res.status(), 404)
+  assert.equal(res.status(), 403)
   assert.ok(!res.body().includes(code), '不得泄露登录码')
 })
 
-test('登录码页：非信任来源也不能生成码', async () => {
+test('登录码页已移除：非信任来源 POST /__lan_code 也不能签发', async () => {
   const { store, handleRequest } = codeEnv()
   const res = fakeRes()
   handleRequest(makePostReq('203.0.113.9', 'action=issue', {}, true, '/__lan_code'), res)
   await waitFor(() => res.status() !== null)
-  assert.equal(res.status(), 404, '非信任来源不应能签发码')
+  assert.equal(res.status(), 403, '非信任来源不应走到签发分支')
   assert.equal(store.peek(FIXED_MS).active, false)
 })

@@ -4,9 +4,9 @@ dsh 局域网/公网反向代理插件，运行在 dsh 进程内：对外监听 
 
 dsh 禁止 `--host 0.0.0.0`；本插件即在 dsh 进程内套一层代理。纯 ESM、零构建、卸载自动清理（`ctx.effect()`）。
 
-> 兼容 dsh 开发者预览版（`web` profile）。dsh 尚未 1.0、有破坏性变更，请按版本锁定 `#v1.1.0`。
+> 兼容 dsh 0.2.2（`web` profile）。dsh 尚未 1.0、有破坏性变更，请按版本锁定 `#v1.2.0`。
 
-![设置 → 插件 → Lan Proxy](docs/settings-card.jpg)
+![设置 → 通用 → 远程登录码](docs/settings-card.jpg)
 
 ## 安装
 
@@ -14,7 +14,7 @@ dsh 禁止 `--host 0.0.0.0`；本插件即在 dsh 进程内套一层代理。纯
 # 本地目录（用 file:，勿用 link:——link: 不装 bundle 依赖）
 dsh plugin --profile web add file:/path/to/dsh-lan-proxy
 # 或 GitHub
-dsh plugin --profile web add github:mariGoIds/dsh-lan-proxy#v1.1.0
+dsh plugin --profile web add github:mariGoIds/dsh-lan-proxy#v1.2.0
 # 装完重启 dsh
 ```
 
@@ -31,8 +31,8 @@ dsh plugin --profile web add github:mariGoIds/dsh-lan-proxy#v1.1.0
 **登录码**
 
 - 一次性登录码：本机手动生成、有租期、**用一次即作废**
-- 生成入口两处：dsh 的「设置 → 插件 → 插件配置 → Lan Proxy」卡片，或本机网页 `http://127.0.0.1:3080/__lan_code`
-- 登录码只在本机可见（公网访问该页面返回 404）
+- 生成入口：「设置 → 通用 → 远程登录码」这一行（点「展开」显示码与按钮）
+- 登录码只在已登录的本机会话里可见，不在任何公网页面上暴露
 - 失败限流：按 IP + 全局双重计数，全局超限后指数退避锁定
 
 **已授权设备**
@@ -121,10 +121,9 @@ Schemastery schema；安全默认（白名单/登录码/日志全空）。在 pr
 
 手机等非白名单设备打开 dsh 时，输入本机生成的登录码即可进入。
 
-**生成 / 查看**（两处同一功能）：
+**生成 / 查看**：
 
-- dsh 界面：「设置 → 插件 → 插件配置 → Lan Proxy」卡片，带「生成登录码 / 重新生成 / 立即作废」按钮与剩余时间
-- 本机网页：`http://127.0.0.1:3080/__lan_code`
+- dsh 界面：「设置 → 通用 → 远程登录码」，收起时只显示状态与当前码，点「展开」后是码 + 倒计时 + 「生成登录码 / 重新生成 / 立即作废」按钮和已授权设备管理
 
 ```yaml
 - id: lan-proxy

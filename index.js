@@ -61,8 +61,7 @@ export const Config = Schema.object({
   // ── 一次性登录码 ─────────────────────────────────────────────────────────
   // 非白名单来源（如手机走流量的公网 IPv6）输入本机生成的登录码即可进入。
   // **码不是自动轮换的**：由人在本机手动生成，有租期，用一次即作废。
-  //   本机生成/查看：设置 → 插件 → 插件配置 → Lan Proxy 卡片（点「生成登录码」）
-  //                  或 http://127.0.0.1:3080/__lan_code
+  //   本机生成/查看：设置 → 通用 → 远程登录码（dsh 设置页里那一行，可展开）
   //
   // 安全要点：码是纯数字，租期内仍可被穷举，故**必须**配合失败限流；
   // 且限流**必须含全局那一层**——只按 IP 计数时攻击者轮换代理即可放大额度。
@@ -192,48 +191,46 @@ export function apply(ctx, config) {
     logger.info('connection service ready; auto-login token source attached')
   })
 
-  // ── 设置页卡片（浏览器半 lib/client.js）────────────────────────────────────
-  // 设置页会「枚举 settings 命名空间」并按命名空间 key 派发 settings.plugin.item 卡片，
-  // 所以必须先把本插件注册成一个可配置命名空间，卡片才会出现在「设置 → 插件配置」。
-  // 卡片不自带配置表单（配置仍写在 profile 的 cordis.patch.yml 里），只显示验证码。
-  const entry = { ...config }
-  let source = () => entry
-  ctx.inject(['settings'], (settingsCtx) => {
-    try {
-      settingsCtx.settings.installSection(ctx, 'lan-proxy', Config, entry, {
-        setSource: (next) => { source = next },
-        onChange: () => { /* 运行时配置不在本插件内热应用，改动后需重启服务 */ },
-      })
-    } catch (e) {
-      logger.warn('注册设置命名空间失败（设置页卡片将不可见）：' + (e?.message ?? String(e)))
-    }
-  })
+  // ── 设置页行（浏览器半 lib/client.js）──────────────────────────────────────
+  // 0.2.2 起设置页由 profile 条目的 Config schema 自动生成，插件侧不再有
+  // settings.installSection 这套命名空间 API；本插件也不暴露可编辑字段
+  // （配置只写在 profile 的 cordis.patch.yml 里），故宿主侧无需注册任何设置。
+  // 浏览器半自行把「远程登录码」行挂到「设置 → 通用」（settings.general.item）。
 
-  // RPC：把验证码给设置页卡片。走 dsh 统一的 Host/Origin 栅栏 + cookie 鉴权，
+  // RPC：把验证码给设置页那一行。走 dsh 统一的 Host/Origin 栅栏 + cookie 鉴权，
   // 因此只有已登录的会话能读到（未登录者连设置页都打不开）。
   ctx.inject(['connection'], (c) => {
     const conn = c.connection
     if (!conn || typeof conn.fetch?.register !== 'function') {
-      logger.warn('connection.fetch 不可用，设置页卡片取不到验证码（本机页面仍可用）')
+      logger.warn('connection.fetch 不可用，设置页的「远程登录码」行取不到状态')
       return
     }
     ctx.effect(() => conn.fetch.register({
       path: '/api/lan-proxy/code',
       methods: ['POST'],
-      requestBody: 'buffered',
+      // 默认的 buffered 模式只在登记时声明一种读法；浏览器上传小 JSON 时可以不带
+      // content-length，streaming 走背压直读，不依赖它。
+      requestBody: 'streaming',
       fetch: async (request) => {
         let rpcId = 'invalid'
+        let action = 'status'
+        let payload = {}
         try {
           const body = await request.json()
           rpcId = body && typeof body.rpcId === 'string' ? body.rpcId : 'invalid'
-          const method = body && typeof body.method === 'string' ? body.method : 'status'
-          const payload = (body && body.payload) || {}
+          // 客户端经 connection.rpc.call('/api', 'lan-proxy/code', ...) 调用时，
+          // 端点名在 envelope.method、动作在 payload.method；也兼容直接 POST 的旧形状。
+          const inner = (body && body.payload) || {}
+          action = typeof inner.method === 'string' ? inner.method
+            : body && typeof body.method === 'string' ? body.method
+              : 'status'
+          payload = inner
           let value
-          if (method === 'issue') value = issueCode()
-          else if (method === 'revoke') value = revokeCode()
-          else if (method === 'devices') value = { devices: listDevices() }
-          else if (method === 'revoke-device') value = { revoked: revokeDevice(payload.id), devices: listDevices() }
-          else if (method === 'revoke-all-devices') value = { revoked: revokeAllDevices(), devices: listDevices() }
+          if (action === 'issue') value = issueCode()
+          else if (action === 'revoke') value = revokeCode()
+          else if (action === 'devices') value = { devices: listDevices() }
+          else if (action === 'revoke-device') value = { revoked: revokeDevice(payload.id), devices: listDevices() }
+          else if (action === 'revoke-all-devices') value = { revoked: revokeAllDevices(), devices: listDevices() }
           else value = codeState()
           return Response.json({ type: 'server-response', rpcId, result: { ok: true, value } })
         } catch (e) {
@@ -249,7 +246,7 @@ export function apply(ctx, config) {
 
   // 一次性登录码：启动时只报一句入口，不再周期播报（码由人手动生成）。
   if (config.codeLogin) {
-    logger.info(`一次性登录码已启用；本机生成入口 http://127.0.0.1:${listenPort}/__lan_code 或「设置 → 插件 → 插件配置 → Lan Proxy」`)
+    logger.info('一次性登录码已启用；本机在「设置 → 通用 → 远程登录码」里生成')
   }
 
   // 注册监听并让插件卸载时自动关闭两个 server

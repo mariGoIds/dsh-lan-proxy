@@ -1,6 +1,6 @@
 {
   "name": "dsh-lan-proxy",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "dsh LAN/public reverse proxy plugin: IP whitelist, one-time login codes, device management, access log. Runs inside the dsh process; dual-stack IPv4/IPv6.",
   "type": "module",
   "main": "index.js",
@@ -26,7 +26,6 @@
     "reverse-proxy",
     "lan",
     "ipv6",
-    "basic-auth",
     "one-time-code",
     "device-management",
     "cordis"
